@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ComplianceFlow AI — MatrixMarket</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.05);
+            border-radius: 50%;
+            border-top: 4px solid #10b981;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen p-6 flex items-start justify-center">
+    <div class="w-full max-w-4xl bg-white rounded-xl shadow p-6 md:p-10">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold">ComplianceFlow AI <span
+                    class="text-sm font-light text-gray-400 block">MatrixMarket</span></h1>
+            <p class="text-gray-600 mt-2">Generate preliminary compliance documents and risk analysis for contractors.
+            </p>
+        </header>
+
+        <form id="projectForm" class="space-y-4 bg-gray-100 p-4 rounded">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Project Title</label>
+                <input id="projectName" type="text" value="Office Tower Renovation Phase I"
+                    class="w-full p-3 border rounded" required />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Detailed Project Scope</label>
+                <textarea id="projectScope" rows="6" class="w-full p-3 border rounded"
+                    required>Interior demolition of two floors (5 and 6) in a commercial building in downtown Chicago. Includes hazardous material abatement (old lead piping), requiring OSHA and local environmental permits. Estimated duration: 90 days. Client is a major healthcare provider.</textarea>
+            </div>
+            <div class="flex gap-2">
+                <button id="generateButton" class="bg-emerald-600 text-white px-4 py-2 rounded flex items-center">
+                    <span id="buttonText">Analyze & Generate Document</span>
+                    <div id="spinner" class="spinner ml-3 hidden"></div>
+                </button>
+                <button id="saveReportButton" class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
+                    disabled>Save Report</button>
+            </div>
+        </form>
+
+        <div id="outputSection" class="mt-6 hidden">
+            <h2 class="text-2xl font-semibold">Generated Compliance Analysis</h2>
+            <div id="generatedDoc" class="mt-3 p-4 bg-white border rounded"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebase-init.js';
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+        import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+        // Replace with your Gemini API key:
+        const GEMINI_API_KEY = 'REPLACE_WITH_KEY';
+        const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025'; // example; adjust to availability
+        const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+
+        // UI
+        const form = document.getElementById('projectForm');
+        const spinner = document.getElementById('spinner');
+        const buttonText = document.getElementById('buttonText');
+        const outputSection = document.getElementById('outputSection');
+        const generatedDoc = document.getElementById('generatedDoc');
+        const saveReportButton = document.getElementById('saveReportButton');
+
+        let currentReport = null;
+        let uid = null;
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                // redirect to login if not signed in
+                window.location.href = 'login.html';
+            } else {
+                uid = user.uid;
+            }
+        });
+
+        function setLoading(on) {
+            spinner.classList.toggle('hidden', !on);
+            if (on) buttonText.textContent = 'Analyzing...';
+            else buttonText.textContent = 'Analyze & Generate Document';
+        }
+
+        async function callGemini(prompt, maxRetries = 3) {
+            // Best-effort client-side call with retry/backoff.
+            // NOTE: For production it's more secure to call Gemini from a server.
+            let attempt = 0;
+            while (attempt < maxRetries) {
+                try {
+                    const res = await fetch(GEMINI_ENDPOINT, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            // minimal payload — tune as needed
+                            prompt: { text: prompt },
+                            // other model params can be added here
+                            maxOutputTokens: 1200
+                        })
+                    });
+                    if (!res.ok) throw new Error(`Status ${res.status}`);
+                    const data = await res.json();
+                    // Parse returned text — the structure may vary by API version
+                    // Attempt to extract text from likely fields:
+                    const text = (data?.candidates?.[0]?.content?.[0]?.text) || data?.output?.[0]?.content?.text || JSON.stringify(data);
+                    return text;
+                } catch (err) {
+                    console.warn('Gemini call failed (attempt', attempt + 1, '):', err);
+                    attempt++;
+                    await new Promise(r => setTimeout(r, 500 * attempt));
+                }
+            }
+            throw new Error('Failed to call Gemini after retries.');
+        }
+
+        function buildPrompt(title, scope) {
+            return `You are a compliance analyst. Generate a structured compliance report for the project titled "${title}". Include:
+- Short executive summary (2-3 sentences).
+- Regulatory Risk Score (1-10) and reason.
+- Required permits and likely issuing authorities (be specific where possible).
+- Hazards and mitigation steps (list at least 5).
+- Key timelines and dependencies.
+- High-level cost/effort indicators.
+Present the report with clear headings and JSON-friendly lists that can be parsed. Project scope: ${scope}`;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            outputSection.classList.add('hidden');
+            generatedDoc.innerHTML = '';
+            saveReportButton.disabled = true;
+            const title = document.getElementById('projectName').value.trim();
+            const scope = document.getElementById('projectScope').value.trim();
+            try {
+                const prompt = buildPrompt(title, scope);
+                const text = await callGemini(prompt);
+                // Basic parsing: keep text and also try to extract lists via simple heuristics (you can improve)
+                currentReport = {
+                    projectName: title,
+                    projectScope: scope,
+                    aiText: text,
+                    riskScore: (() => {
+                        const m = text.match(/Regulatory Risk Score[:\s]*([0-9]+)/i);
+                        return m ? parseInt(m[1], 10) : null;
+                    })(),
+                    timestamp: new Date()
+                };
+                generatedDoc.innerHTML = `<pre class="whitespace-pre-wrap text-sm">${escapeHtml(text)}</pre>`;
+                outputSection.classList.remove('hidden');
+                saveReportButton.disabled = false;
+            } catch (err) {
+                alert('Failed to generate report: ' + err.message);
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+
+        saveReportButton.addEventListener('click', async () => {
+            if (!uid || !currentReport) return alert('No report to save or not authenticated.');
+            try {
+                const reportsRef = collection(db, 'users', uid, 'reports');
+                await addDoc(reportsRef, {
+                    projectName: currentReport.projectName,
+                    projectScope: currentReport.projectScope,
+                    aiText: currentReport.aiText,
+                    riskScore: currentReport.riskScore,
+                    timestamp: serverTimestamp()
+                });
+                alert('Report saved!');
+            } catch (err) {
+                console.error('Save failed', err);
+                alert('Failed to save report: ' + err.message);
+            }
+        });
+    </script>
+</body>
+
+</html>

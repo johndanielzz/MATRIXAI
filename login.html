@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Login — MatrixMarket</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+    <div class="max-w-md w-full bg-white rounded-xl shadow p-6">
+        <h2 class="text-2xl font-bold mb-2">Sign in</h2>
+        <form id="loginForm" class="space-y-3">
+            <input id="email" type="email" placeholder="Email" required class="w-full p-3 border rounded" />
+            <input id="password" type="password" placeholder="Password" required class="w-full p-3 border rounded" />
+            <button class="w-full bg-emerald-600 text-white py-3 rounded" type="submit">Login</button>
+        </form>
+        <div class="mt-4 text-sm text-gray-600">
+            <a href="forgot-password.html" class="underline">Forgot password?</a> • <a href="register.html"
+                class="underline">Create account</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth } from './firebase-init.js';
+        import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                window.location.href = 'dashboard.html';
+            } catch (err) {
+                alert('Login failed: ' + err.message);
+            }
+        });
+    </script>
+</body>
+
+</html>

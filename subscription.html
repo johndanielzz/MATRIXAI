@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Subscriptions — MatrixMarket</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="min-h-screen bg-slate-50 p-6 flex items-start justify-center">
+    <div class="max-w-4xl w-full bg-white rounded-xl shadow p-6">
+        <h1 class="text-2xl font-bold">Subscription Plans</h1>
+        <p class="text-gray-600">Choose a plan. This demo writes subscription status to Firestore — integrate Stripe for
+            payments later.</p>
+
+        <div class="mt-6 grid gap-4 grid-cols-1 md:grid-cols-3">
+            <div class="border p-4 rounded">
+                <h3 class="font-bold">Basic</h3>
+                <p class="text-sm text-gray-600">Small projects — limited daily reports</p>
+                <button class="mt-4 subscribe-btn w-full bg-gray-200 py-2 rounded" data-plan="basic">Activate</button>
+            </div>
+            <div class="border p-4 rounded">
+                <h3 class="font-bold">Pro</h3>
+                <p class="text-sm text-gray-600">Priority generation, more tokens</p>
+                <button class="mt-4 subscribe-btn w-full bg-emerald-600 text-white py-2 rounded" data-plan="pro">Upgrade
+                    ($10/mo)</button>
+            </div>
+            <div class="border p-4 rounded">
+                <h3 class="font-bold">Enterprise</h3>
+                <p class="text-sm text-gray-600">Team accounts & admin tools</p>
+                <button class="mt-4 subscribe-btn w-full bg-indigo-600 text-white py-2 rounded"
+                    data-plan="enterprise">Contact Sales</button>
+            </div>
+        </div>
+
+        <div class="mt-6 text-sm text-gray-500">Note: Payment integration is not included in this demo.</div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebase-init.js';
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+        import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+        let uid = null;
+        onAuthStateChanged(auth, (u) => {
+            if (u) uid = u.uid;
+            else window.location.href = 'login.html';
+        });
+
+        document.querySelectorAll('.subscribe-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const plan = btn.dataset.plan;
+                if (!uid) return alert('Please sign in first.');
+                if (plan === 'enterprise') return alert('Please contact sales@matrixmarket.local');
+                try {
+                    await updateDoc(doc(db, 'users', uid), { subscription: plan });
+                    alert('Subscription updated to: ' + plan);
+                } catch (err) {
+                    console.error(err);
+                    alert('Failed to update subscription: ' + err.message);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

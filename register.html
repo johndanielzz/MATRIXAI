@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Register — MatrixMarket</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+    <div class="max-w-md w-full bg-white rounded-xl shadow p-6">
+        <h2 class="text-2xl font-bold mb-2">Create account</h2>
+        <p class="text-sm text-gray-500 mb-4">Register as User or Seller</p>
+
+        <form id="registerForm" class="space-y-3">
+            <input id="name" placeholder="Full name" required class="w-full p-3 border rounded" />
+            <input id="email" type="email" placeholder="Email" required class="w-full p-3 border rounded" />
+            <input id="password" type="password" placeholder="Password (6+ chars)" required
+                class="w-full p-3 border rounded" />
+            <select id="role" class="w-full p-3 border rounded">
+                <option value="user">User</option>
+                <option value="seller">Seller</option>
+            </select>
+            <button class="w-full bg-emerald-600 text-white py-3 rounded" type="submit">Register</button>
+        </form>
+
+        <p class="text-sm mt-4 text-gray-600">Already have an account? <a href="login.html" class="underline">Sign
+                in</a></p>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebase-init.js';
+        import { createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+        import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+        const form = document.getElementById('registerForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+            try {
+                const userCred = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(userCred.user, { displayName: name });
+                const uid = userCred.user.uid;
+                await setDoc(doc(db, 'users', uid), {
+                    name, email, role, createdAt: serverTimestamp(), subscription: 'free', balance: 0
+                });
+                alert('Account created — redirecting to dashboard.');
+                window.location.href = 'dashboard.html';
+            } catch (err) {
+                console.error(err);
+                alert('Registration error: ' + err.message);
+            }
+        });
+    </script>
+</body>
+
+</html>
