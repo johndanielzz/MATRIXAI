@@ -5,7 +5,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ComplianceFlow AI — MatrixMarket</title>
-    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -14,9 +13,9 @@
         }
 
         .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.05);
+            border: 4px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
-            border-top: 4px solid #10b981;
+            border-top: 4px solid #fff;
             width: 20px;
             height: 20px;
             animation: spin 1s linear infinite;
@@ -27,10 +26,23 @@
                 transform: rotate(360deg)
             }
         }
+        /* Custom message box styling */
+        .message-box {
+            transition: opacity 0.3s ease-in-out;
+            z-index: 1000;
+        }
     </style>
 </head>
 
 <body class="bg-gray-50 min-h-screen p-6 flex items-start justify-center">
+
+    <!-- Custom Message Box for Alerts -->
+    <div id="messageBox"
+        class="message-box fixed top-4 right-4 p-4 rounded-lg shadow-xl text-white opacity-0 pointer-events-none bg-emerald-600">
+        Message Text
+    </div>
+    <!-- End Message Box -->
+
     <div class="w-full max-w-4xl bg-white rounded-xl shadow p-6 md:p-10">
         <header class="text-center mb-6">
             <h1 class="text-3xl font-bold">ComplianceFlow AI <span
@@ -39,44 +51,109 @@
             </p>
         </header>
 
-        <form id="projectForm" class="space-y-4 bg-gray-100 p-4 rounded">
+        <form id="projectForm" class="space-y-4 bg-gray-100 p-4 rounded-lg">
             <div>
-                <label class="block text-sm font-medium text-gray-700">Project Title</label>
+                <label for="projectName" class="block text-sm font-medium text-gray-700">Project Title</label>
                 <input id="projectName" type="text" value="Office Tower Renovation Phase I"
-                    class="w-full p-3 border rounded" required />
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500" required />
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">Detailed Project Scope</label>
-                <textarea id="projectScope" rows="6" class="w-full p-3 border rounded"
+                <label for="projectScope" class="block text-sm font-medium text-gray-700">Detailed Project Scope</label>
+                <textarea id="projectScope" rows="6"
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
                     required>Interior demolition of two floors (5 and 6) in a commercial building in downtown Chicago. Includes hazardous material abatement (old lead piping), requiring OSHA and local environmental permits. Estimated duration: 90 days. Client is a major healthcare provider.</textarea>
             </div>
-            <div class="flex gap-2">
-                <button id="generateButton" class="bg-emerald-600 text-white px-4 py-2 rounded flex items-center">
+            <div class="flex gap-4 items-center">
+                <button id="generateButton" type="submit"
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl flex items-center shadow-md transition duration-150 ease-in-out">
                     <span id="buttonText">Analyze & Generate Document</span>
                     <div id="spinner" class="spinner ml-3 hidden"></div>
                 </button>
-                <button id="saveReportButton" class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
+                <button id="saveReportButton" type="button"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-md transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled>Save Report</button>
             </div>
         </form>
 
-        <div id="outputSection" class="mt-6 hidden">
-            <h2 class="text-2xl font-semibold">Generated Compliance Analysis</h2>
-            <div id="generatedDoc" class="mt-3 p-4 bg-white border rounded"></div>
+        <div id="outputSection" class="mt-8 hidden">
+            <h2 class="text-2xl font-semibold text-gray-800 border-b pb-2 mb-4">Generated Compliance Analysis</h2>
+            <div id="generatedDoc" class="mt-3 p-6 bg-gray-50 border border-gray-200 rounded-lg shadow-inner"></div>
         </div>
     </div>
 
     <script type="module">
-        import { auth, db } from './firebase-init.js';
-        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-        import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+        // --- MANDATORY FIREBASE & ENVIRONMENT SETUP ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Replace with your Gemini API key:
-        const GEMINI_API_KEY = 'REPLACE_WITH_KEY';
-        const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025'; // example; adjust to availability
-        const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+        // Global variables provided by the canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 
-        // UI
+        // Initialize Firebase services
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        setLogLevel('Debug'); // Enable Firestore logging
+
+        let userId = null; // User ID (UID or random for anon)
+
+        /**
+         * Custom function to display messages instead of forbidden alert().
+         * @param {string} message 
+         * @param {string} type 
+         */
+        function showMessage(message, type = 'success') {
+            const box = document.getElementById('messageBox');
+            box.textContent = message;
+            
+            box.classList.remove('bg-emerald-600', 'bg-red-600');
+            if (type === 'success') {
+                box.classList.add('bg-emerald-600');
+            } else {
+                box.classList.add('bg-red-600');
+            }
+
+            box.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                box.classList.add('opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        // Authentication logic
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase Auth failed during sign-in:", error);
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    // Set the current authenticated UID
+                    userId = user.uid;
+                    console.log("User authenticated:", userId);
+                } else {
+                    // Fallback to anonymous or random ID if initial auth fails
+                    userId = crypto.randomUUID();
+                    console.log("User is not authenticated. Using random ID:", userId);
+                }
+            });
+        }
+        initAuth();
+        // --- END MANDATORY FIREBASE & ENVIRONMENT SETUP ---
+
+        // --- GEMINI CONFIGURATION ---
+        const apiKey = ""; // MANDATORY: Leave as empty string for canvas to inject key
+        const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025';
+        const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+
+        // UI References
         const form = document.getElementById('projectForm');
         const spinner = document.getElementById('spinner');
         const buttonText = document.getElementById('buttonText');
@@ -85,63 +162,80 @@
         const saveReportButton = document.getElementById('saveReportButton');
 
         let currentReport = null;
-        let uid = null;
-
-        onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                // redirect to login if not signed in
-                window.location.href = 'login.html';
-            } else {
-                uid = user.uid;
-            }
-        });
 
         function setLoading(on) {
+            const generateButton = document.getElementById('generateButton');
             spinner.classList.toggle('hidden', !on);
+            generateButton.disabled = on;
             if (on) buttonText.textContent = 'Analyzing...';
             else buttonText.textContent = 'Analyze & Generate Document';
         }
 
+        /**
+         * Calls the Gemini API with exponential backoff and correct payload.
+         */
         async function callGemini(prompt, maxRetries = 3) {
-            // Best-effort client-side call with retry/backoff.
-            // NOTE: For production it's more secure to call Gemini from a server.
             let attempt = 0;
             while (attempt < maxRetries) {
                 try {
+                    const payload = {
+                        contents: [{ parts: [{ text: prompt }] }],
+                        config: {
+                            maxOutputTokens: 2048 // Increased token count for better reports
+                        }
+                    };
+
                     const res = await fetch(GEMINI_ENDPOINT, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            // minimal payload — tune as needed
-                            prompt: { text: prompt },
-                            // other model params can be added here
-                            maxOutputTokens: 1200
-                        })
+                        body: JSON.stringify(payload)
                     });
-                    if (!res.ok) throw new Error(`Status ${res.status}`);
+
                     const data = await res.json();
-                    // Parse returned text — the structure may vary by API version
-                    // Attempt to extract text from likely fields:
-                    const text = (data?.candidates?.[0]?.content?.[0]?.text) || data?.output?.[0]?.content?.text || JSON.stringify(data);
-                    return text;
+
+                    if (!res.ok) {
+                         // Check for rate limit or other API errors
+                        if (res.status === 429) {
+                            throw new Error('Rate limit exceeded or API error.');
+                        }
+                        // Check for blocked content or missing candidates
+                        const safetyReason = data?.candidates?.[0]?.safetyRatings?.[0]?.blockReason;
+                        if (safetyReason) {
+                            throw new Error(`Content blocked: ${safetyReason}`);
+                        }
+                        throw new Error(`API Status ${res.status}: ${data.error?.message || 'Unknown API Error'}`);
+                    }
+                    
+                    const candidate = data.candidates?.[0];
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        return candidate.content.parts[0].text;
+                    }
+                    throw new Error('Invalid response structure or no content generated.');
+
                 } catch (err) {
-                    console.warn('Gemini call failed (attempt', attempt + 1, '):', err);
+                    console.warn('Gemini call failed (attempt', attempt + 1, '):', err.message);
                     attempt++;
-                    await new Promise(r => setTimeout(r, 500 * attempt));
+                    if (attempt >= maxRetries) throw new Error(`Failed to call Gemini after ${maxRetries} retries: ${err.message}`);
+                    await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1))); // Exponential backoff
                 }
             }
-            throw new Error('Failed to call Gemini after retries.');
         }
 
+
         function buildPrompt(title, scope) {
-            return `You are a compliance analyst. Generate a structured compliance report for the project titled "${title}". Include:
-- Short executive summary (2-3 sentences).
-- Regulatory Risk Score (1-10) and reason.
-- Required permits and likely issuing authorities (be specific where possible).
-- Hazards and mitigation steps (list at least 5).
-- Key timelines and dependencies.
-- High-level cost/effort indicators.
-Present the report with clear headings and JSON-friendly lists that can be parsed. Project scope: ${scope}`;
+            // Using Markdown formatting in the prompt for a cleaner output
+            return `You are a compliance analyst specializing in construction and healthcare projects. Generate a structured compliance report for the project titled "${title}". 
+**INSTRUCTIONS:**
+1.  Generate a Short Executive Summary (2-3 sentences).
+2.  Provide a Regulatory Risk Score (1-10, where 10 is highest risk) and a brief justification.
+3.  List Required Permits and Likely Issuing Authorities (e.g., Chicago DOB, EPA, OSHA).
+4.  List Hazards and Mitigation Steps (list at least 5 key items).
+5.  List Key Timelines and Dependencies.
+
+Present the entire report using clear Markdown headings and bullet points.
+
+Project Title: ${title}
+Project Scope: ${scope}`;
         }
 
         form.addEventListener('submit', async (e) => {
@@ -150,27 +244,34 @@ Present the report with clear headings and JSON-friendly lists that can be parse
             outputSection.classList.add('hidden');
             generatedDoc.innerHTML = '';
             saveReportButton.disabled = true;
+
             const title = document.getElementById('projectName').value.trim();
             const scope = document.getElementById('projectScope').value.trim();
+
             try {
                 const prompt = buildPrompt(title, scope);
                 const text = await callGemini(prompt);
-                // Basic parsing: keep text and also try to extract lists via simple heuristics (you can improve)
+                
+                // Use a library like 'marked' or custom logic if full MD rendering is needed.
+                // For simplicity here, we display the raw Markdown text nicely.
                 currentReport = {
                     projectName: title,
                     projectScope: scope,
                     aiText: text,
+                    // Simple heuristic to extract score
                     riskScore: (() => {
                         const m = text.match(/Regulatory Risk Score[:\s]*([0-9]+)/i);
                         return m ? parseInt(m[1], 10) : null;
                     })(),
                     timestamp: new Date()
                 };
-                generatedDoc.innerHTML = `<pre class="whitespace-pre-wrap text-sm">${escapeHtml(text)}</pre>`;
+
+                generatedDoc.innerHTML = `<pre class="whitespace-pre-wrap text-sm text-gray-800">${escapeHtml(text)}</pre>`;
                 outputSection.classList.remove('hidden');
                 saveReportButton.disabled = false;
+                showMessage('Report generated successfully!', 'success');
             } catch (err) {
-                alert('Failed to generate report: ' + err.message);
+                showMessage('Failed to generate report: ' + err.message, 'error');
                 console.error(err);
             } finally {
                 setLoading(false);
@@ -182,9 +283,13 @@ Present the report with clear headings and JSON-friendly lists that can be parse
         }
 
         saveReportButton.addEventListener('click', async () => {
-            if (!uid || !currentReport) return alert('No report to save or not authenticated.');
+            if (!userId || !currentReport) return showMessage('User not authenticated or no report to save.', 'error');
+
             try {
-                const reportsRef = collection(db, 'users', uid, 'reports');
+                // Firestore collection path for private user data
+                const reportsPath = `/artifacts/${appId}/users/${userId}/reports`;
+                const reportsRef = collection(db, reportsPath);
+                
                 await addDoc(reportsRef, {
                     projectName: currentReport.projectName,
                     projectScope: currentReport.projectScope,
@@ -192,10 +297,12 @@ Present the report with clear headings and JSON-friendly lists that can be parse
                     riskScore: currentReport.riskScore,
                     timestamp: serverTimestamp()
                 });
-                alert('Report saved!');
+
+                showMessage('Report saved successfully to Firestore!', 'success');
+                saveReportButton.disabled = true; // Prevent double saving
             } catch (err) {
                 console.error('Save failed', err);
-                alert('Failed to save report: ' + err.message);
+                showMessage('Failed to save report: ' + err.message, 'error');
             }
         });
     </script>
