@@ -58,12 +58,20 @@
             <p id="userIdDisplay" class="text-xs text-gray-500 mt-1"></p>
         </header>
 
+        <!-- New dedicated error display area -->
+        <div id="errorDisplay"
+            class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong class="font-bold">Configuration Error:</strong>
+            <span id="errorMessage" class="block sm:inline ml-1"></span>
+        </div>
+
         <!-- Input Form -->
         <form id="projectForm" class="space-y-4 bg-gray-100 p-4 rounded-lg">
             <div>
                 <label for="projectName" class="block text-sm font-medium text-gray-700">Project Title</label>
                 <input id="projectName" type="text" value="Office Tower Renovation Phase I"
-                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500" required />
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                    required />
             </div>
             <div>
                 <label for="projectScope" class="block text-sm font-medium text-gray-700">Detailed Project Scope</label>
@@ -106,11 +114,11 @@
         const CUSTOM_FIREBASE_CONFIG = {
             // PASTE YOUR ENTIRE FIREBASE CONFIG OBJECT HERE
         };
-        
+
         // Global variables provided by the Canvas environment (used for testing here, ignored on your live site)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
+        const firebaseConfig = typeof __firebase_config !== 'undefined'
+            ? JSON.parse(__firebase_config)
             : CUSTOM_FIREBASE_CONFIG; // Use custom config if not in canvas
 
         // Initialize Firebase services
@@ -128,13 +136,21 @@
          */
         function showMessage(message, type = 'success') {
             const box = document.getElementById('messageBox');
+            const errorDisplay = document.getElementById('errorDisplay');
+            const errorMessage = document.getElementById('errorMessage');
+
             box.textContent = message;
 
             box.classList.remove('bg-emerald-600', 'bg-red-600');
             if (type === 'success') {
                 box.classList.add('bg-emerald-600');
+                // Hide persistent error display on success
+                errorDisplay.classList.add('hidden');
             } else {
                 box.classList.add('bg-red-600');
+                // Show persistent error display on error
+                errorDisplay.classList.remove('hidden');
+                errorMessage.textContent = message;
             }
 
             box.classList.remove('opacity-0', 'pointer-events-none');
@@ -145,6 +161,13 @@
 
         // Authentication logic
         async function initAuth() {
+            // Check for Firebase placeholder immediately
+            if (Object.keys(CUSTOM_FIREBASE_CONFIG).length === 0) {
+                showMessage('Configuration Error: CUSTOM_FIREBASE_CONFIG is empty. Please set your Firebase credentials.', 'error');
+                // Prevent further Firebase setup if config is missing
+                return;
+            }
+
             try {
                 // Check for the canvas-provided token first
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -155,10 +178,7 @@
                 }
             } catch (error) {
                 console.error("Firebase Auth failed during sign-in:", error);
-                // If sign-in fails, show an error related to missing config
-                if (Object.keys(CUSTOM_FIREBASE_CONFIG).length === 0) {
-                     showMessage('Firebase Configuration is missing. Cannot save reports.', 'error');
-                }
+                showMessage('Firebase Authentication Failed. Check your project configuration/rules.', 'error');
             }
 
             // Listener to get the final user state (UID)
@@ -182,10 +202,10 @@
         // === CRITICAL ACTION 2: INSERT YOUR GEMINI API KEY HERE FOR PUBLIC WEBSITE DEPLOYMENT ===
         // ====================================================================================================
         const CUSTOM_GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
-        
+
         // Use the custom key on the public site, but let the canvas handle it if present
-        const apiKey = typeof __initial_auth_token !== 'undefined' ? "" : CUSTOM_GEMINI_API_KEY; 
-        
+        const apiKey = typeof __initial_auth_token !== 'undefined' ? "" : CUSTOM_GEMINI_API_KEY;
+
         const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025';
         const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
@@ -211,11 +231,11 @@
          * Calls the Gemini API with exponential backoff and correct payload.
          */
         async function callGemini(prompt, maxRetries = 3) {
-            // Check if the API Key is set before attempting the fetch
-            if (!apiKey) {
-                throw new Error("API Key is missing. Please set CUSTOM_GEMINI_API_KEY.");
+            // Explicitly check if the API Key is still the placeholder text
+            if (CUSTOM_GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE" || !apiKey) {
+                throw new Error("API Key Missing: Please replace 'YOUR_GEMINI_API_KEY_HERE' in the code.");
             }
-            
+
             let attempt = 0;
             while (attempt < maxRetries) {
                 try {
@@ -224,7 +244,7 @@
                         systemInstruction: {
                             parts: [{ text: "You are an expert compliance and risk analyst. Your goal is to generate preliminary, professional, and well-structured compliance reports based on project scope, focusing on regulatory risks, required permits, and safety mitigations. Respond only with the requested report content in Markdown." }]
                         },
-                        generationConfig: { 
+                        generationConfig: {
                             maxOutputTokens: 2048
                         }
                     };
@@ -333,8 +353,8 @@ Project Scope: ${scope}`;
             if (Object.keys(firebaseConfig).length === 0) return showMessage('Firebase is not configured. Cannot save reports.', 'error');
 
             try {
-                // Using a generic "reports" collection path for public deployment (not the canvas-specific path)
-                const reportsPath = `reports`; 
+                // Using a generic "reports" collection path for public deployment
+                const reportsPath = `reports`;
                 const reportsRef = collection(db, reportsPath);
 
                 await addDoc(reportsRef, {
