@@ -94,14 +94,24 @@
 
     <script type="module">
         // --- MANDATORY FIREBASE & ENVIRONMENT SETUP ---
-        // Importing necessary Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global variables provided by the canvas environment
+        // ====================================================================================================
+        // === CRITICAL ACTION 1: INSERT YOUR FIREBASE CONFIGURATION HERE FOR PUBLIC WEBSITE DEPLOYMENT ===
+        // Get this object from your Firebase project settings (Web app setup).
+        // It must look like: { apiKey: "AIza...", authDomain: "...", projectId: "...", ... }
+        // ====================================================================================================
+        const CUSTOM_FIREBASE_CONFIG = {
+            // PASTE YOUR ENTIRE FIREBASE CONFIG OBJECT HERE
+        };
+        
+        // Global variables provided by the Canvas environment (used for testing here, ignored on your live site)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : CUSTOM_FIREBASE_CONFIG; // Use custom config if not in canvas
 
         // Initialize Firebase services
         const app = initializeApp(firebaseConfig);
@@ -136,14 +146,19 @@
         // Authentication logic
         async function initAuth() {
             try {
-                // Use custom token if provided, otherwise sign in anonymously
+                // Check for the canvas-provided token first
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
+                    // Default to anonymous sign-in for public deployment
                     await signInAnonymously(auth);
                 }
             } catch (error) {
                 console.error("Firebase Auth failed during sign-in:", error);
+                // If sign-in fails, show an error related to missing config
+                if (Object.keys(CUSTOM_FIREBASE_CONFIG).length === 0) {
+                     showMessage('Firebase Configuration is missing. Cannot save reports.', 'error');
+                }
             }
 
             // Listener to get the final user state (UID)
@@ -162,7 +177,15 @@
         // --- END MANDATORY FIREBASE & ENVIRONMENT SETUP ---
 
         // --- GEMINI CONFIGURATION ---
-        const apiKey = ""; // MANDATORY: Leave as empty string for canvas to inject key
+
+        // ====================================================================================================
+        // === CRITICAL ACTION 2: INSERT YOUR GEMINI API KEY HERE FOR PUBLIC WEBSITE DEPLOYMENT ===
+        // ====================================================================================================
+        const CUSTOM_GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
+        
+        // Use the custom key on the public site, but let the canvas handle it if present
+        const apiKey = typeof __initial_auth_token !== 'undefined' ? "" : CUSTOM_GEMINI_API_KEY; 
+        
         const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025';
         const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
@@ -188,6 +211,11 @@
          * Calls the Gemini API with exponential backoff and correct payload.
          */
         async function callGemini(prompt, maxRetries = 3) {
+            // Check if the API Key is set before attempting the fetch
+            if (!apiKey) {
+                throw new Error("API Key is missing. Please set CUSTOM_GEMINI_API_KEY.");
+            }
+            
             let attempt = 0;
             while (attempt < maxRetries) {
                 try {
@@ -215,6 +243,10 @@
                             throw new Error('Rate limit exceeded. Retrying...');
                         } else if (data?.candidates?.[0]?.finishReason === 'SAFETY') {
                             throw new Error('Content blocked by safety filters.');
+                        }
+                        // This handles the common 400/403 errors when the API key is wrong or missing
+                        if (res.status === 400 || res.status === 403) {
+                            throw new Error("Authentication failed. Check your Gemini API key.");
                         }
                         throw new Error(`API Status ${res.status}: ${errorMsg}`);
                     }
@@ -298,13 +330,15 @@ Project Scope: ${scope}`;
 
         saveReportButton.addEventListener('click', async () => {
             if (!userId || !currentReport) return showMessage('User not authenticated or no report to save.', 'error');
+            if (Object.keys(firebaseConfig).length === 0) return showMessage('Firebase is not configured. Cannot save reports.', 'error');
 
             try {
-                // Firestore collection path for private user data: /artifacts/{appId}/users/{userId}/reports
-                const reportsPath = `/artifacts/${appId}/users/${userId}/reports`;
+                // Using a generic "reports" collection path for public deployment (not the canvas-specific path)
+                const reportsPath = `reports`; 
                 const reportsRef = collection(db, reportsPath);
 
                 await addDoc(reportsRef, {
+                    userId: userId, // Include the ID of the user who saved it
                     projectName: currentReport.projectName,
                     projectScope: currentReport.projectScope,
                     aiText: currentReport.aiText,
