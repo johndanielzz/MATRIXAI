@@ -6,12 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ComplianceFlow AI — MatrixMarket</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Loading the Inter font from Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Base font application */
         body {
             font-family: 'Inter', sans-serif;
         }
 
+        /* Spinner for loading state */
         .spinner {
             border: 4px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
@@ -26,7 +29,8 @@
                 transform: rotate(360deg)
             }
         }
-        /* Custom message box styling */
+
+        /* Custom message box styling (used instead of alert/confirm) */
         .message-box {
             transition: opacity 0.3s ease-in-out;
             z-index: 1000;
@@ -43,14 +47,18 @@
     </div>
     <!-- End Message Box -->
 
+    <!-- Main Application Container -->
     <div class="w-full max-w-4xl bg-white rounded-xl shadow p-6 md:p-10">
         <header class="text-center mb-6">
             <h1 class="text-3xl font-bold">ComplianceFlow AI <span
                     class="text-sm font-light text-gray-400 block">MatrixMarket</span></h1>
             <p class="text-gray-600 mt-2">Generate preliminary compliance documents and risk analysis for contractors.
             </p>
+            <!-- Display User ID for debugging and multi-user context -->
+            <p id="userIdDisplay" class="text-xs text-gray-500 mt-1"></p>
         </header>
 
+        <!-- Input Form -->
         <form id="projectForm" class="space-y-4 bg-gray-100 p-4 rounded-lg">
             <div>
                 <label for="projectName" class="block text-sm font-medium text-gray-700">Project Title</label>
@@ -64,17 +72,20 @@
                     required>Interior demolition of two floors (5 and 6) in a commercial building in downtown Chicago. Includes hazardous material abatement (old lead piping), requiring OSHA and local environmental permits. Estimated duration: 90 days. Client is a major healthcare provider.</textarea>
             </div>
             <div class="flex gap-4 items-center">
+                <!-- Generate Button -->
                 <button id="generateButton" type="submit"
                     class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl flex items-center shadow-md transition duration-150 ease-in-out">
                     <span id="buttonText">Analyze & Generate Document</span>
                     <div id="spinner" class="spinner ml-3 hidden"></div>
                 </button>
+                <!-- Save Button (uses Firestore) -->
                 <button id="saveReportButton" type="button"
                     class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-md transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled>Save Report</button>
             </div>
         </form>
 
+        <!-- Output Section -->
         <div id="outputSection" class="mt-8 hidden">
             <h2 class="text-2xl font-semibold text-gray-800 border-b pb-2 mb-4">Generated Compliance Analysis</h2>
             <div id="generatedDoc" class="mt-3 p-6 bg-gray-50 border border-gray-200 rounded-lg shadow-inner"></div>
@@ -83,6 +94,7 @@
 
     <script type="module">
         // --- MANDATORY FIREBASE & ENVIRONMENT SETUP ---
+        // Importing necessary Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -107,7 +119,7 @@
         function showMessage(message, type = 'success') {
             const box = document.getElementById('messageBox');
             box.textContent = message;
-            
+
             box.classList.remove('bg-emerald-600', 'bg-red-600');
             if (type === 'success') {
                 box.classList.add('bg-emerald-600');
@@ -124,6 +136,7 @@
         // Authentication logic
         async function initAuth() {
             try {
+                // Use custom token if provided, otherwise sign in anonymously
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
@@ -133,16 +146,16 @@
                 console.error("Firebase Auth failed during sign-in:", error);
             }
 
+            // Listener to get the final user state (UID)
             onAuthStateChanged(auth, (user) => {
                 if (user) {
-                    // Set the current authenticated UID
                     userId = user.uid;
-                    console.log("User authenticated:", userId);
                 } else {
-                    // Fallback to anonymous or random ID if initial auth fails
+                    // Fallback using crypto.randomUUID for unauthenticated persistence
                     userId = crypto.randomUUID();
-                    console.log("User is not authenticated. Using random ID:", userId);
                 }
+                // Update UI with the user's ID
+                document.getElementById('userIdDisplay').textContent = `User ID: ${userId}`;
             });
         }
         initAuth();
@@ -180,8 +193,11 @@
                 try {
                     const payload = {
                         contents: [{ parts: [{ text: prompt }] }],
-                        config: {
-                            maxOutputTokens: 2048 // Increased token count for better reports
+                        systemInstruction: {
+                            parts: [{ text: "You are an expert compliance and risk analyst. Your goal is to generate preliminary, professional, and well-structured compliance reports based on project scope, focusing on regulatory risks, required permits, and safety mitigations. Respond only with the requested report content in Markdown." }]
+                        },
+                        generationConfig: { 
+                            maxOutputTokens: 2048
                         }
                     };
 
@@ -194,18 +210,15 @@
                     const data = await res.json();
 
                     if (!res.ok) {
-                         // Check for rate limit or other API errors
+                        const errorMsg = data.error?.message || 'Unknown API Error';
                         if (res.status === 429) {
-                            throw new Error('Rate limit exceeded or API error.');
+                            throw new Error('Rate limit exceeded. Retrying...');
+                        } else if (data?.candidates?.[0]?.finishReason === 'SAFETY') {
+                            throw new Error('Content blocked by safety filters.');
                         }
-                        // Check for blocked content or missing candidates
-                        const safetyReason = data?.candidates?.[0]?.safetyRatings?.[0]?.blockReason;
-                        if (safetyReason) {
-                            throw new Error(`Content blocked: ${safetyReason}`);
-                        }
-                        throw new Error(`API Status ${res.status}: ${data.error?.message || 'Unknown API Error'}`);
+                        throw new Error(`API Status ${res.status}: ${errorMsg}`);
                     }
-                    
+
                     const candidate = data.candidates?.[0];
                     if (candidate && candidate.content?.parts?.[0]?.text) {
                         return candidate.content.parts[0].text;
@@ -223,14 +236,14 @@
 
 
         function buildPrompt(title, scope) {
-            // Using Markdown formatting in the prompt for a cleaner output
-            return `You are a compliance analyst specializing in construction and healthcare projects. Generate a structured compliance report for the project titled "${title}". 
+            // Template for the compliance report generation prompt
+            return `Generate a structured compliance report for the project titled "${title}". 
 **INSTRUCTIONS:**
-1.  Generate a Short Executive Summary (2-3 sentences).
-2.  Provide a Regulatory Risk Score (1-10, where 10 is highest risk) and a brief justification.
-3.  List Required Permits and Likely Issuing Authorities (e.g., Chicago DOB, EPA, OSHA).
-4.  List Hazards and Mitigation Steps (list at least 5 key items).
-5.  List Key Timelines and Dependencies.
+1. Generate a Short Executive Summary (2-3 sentences).
+2. Provide a Regulatory Risk Score (1-10, where 10 is highest risk) and a brief justification.
+3. List Required Permits and Likely Issuing Authorities (e.g., Chicago DOB, EPA, OSHA).
+4. List Hazards and Mitigation Steps (list at least 5 key items).
+5. List Key Timelines and Dependencies.
 
 Present the entire report using clear Markdown headings and bullet points.
 
@@ -251,9 +264,8 @@ Project Scope: ${scope}`;
             try {
                 const prompt = buildPrompt(title, scope);
                 const text = await callGemini(prompt);
-                
-                // Use a library like 'marked' or custom logic if full MD rendering is needed.
-                // For simplicity here, we display the raw Markdown text nicely.
+
+                // Store the report data
                 currentReport = {
                     projectName: title,
                     projectScope: scope,
@@ -266,6 +278,7 @@ Project Scope: ${scope}`;
                     timestamp: new Date()
                 };
 
+                // Display the raw Markdown text nicely using a preformatted block
                 generatedDoc.innerHTML = `<pre class="whitespace-pre-wrap text-sm text-gray-800">${escapeHtml(text)}</pre>`;
                 outputSection.classList.remove('hidden');
                 saveReportButton.disabled = false;
@@ -278,6 +291,7 @@ Project Scope: ${scope}`;
             }
         });
 
+        // Utility to escape HTML entities for display in <pre> tag
         function escapeHtml(s) {
             return String(s).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
         }
@@ -286,10 +300,10 @@ Project Scope: ${scope}`;
             if (!userId || !currentReport) return showMessage('User not authenticated or no report to save.', 'error');
 
             try {
-                // Firestore collection path for private user data
+                // Firestore collection path for private user data: /artifacts/{appId}/users/{userId}/reports
                 const reportsPath = `/artifacts/${appId}/users/${userId}/reports`;
                 const reportsRef = collection(db, reportsPath);
-                
+
                 await addDoc(reportsRef, {
                     projectName: currentReport.projectName,
                     projectScope: currentReport.projectScope,
