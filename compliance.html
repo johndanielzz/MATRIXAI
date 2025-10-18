@@ -7,11 +7,12 @@
     <title>ComplianceFlow AI — MatrixMarket</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Loading the Inter font from Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         /* Base font application */
         body {
             font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
         }
 
         /* Spinner for loading state */
@@ -30,86 +31,144 @@
             }
         }
 
-        /* Custom message box styling (used instead of alert/confirm) */
+        /* Custom message box styling */
         .message-box {
             transition: opacity 0.3s ease-in-out;
             z-index: 1000;
         }
+
+        /* Styles to make the Markdown look good */
+        .markdown-content h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #1f2937;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0.25rem;
+        }
+
+        .markdown-content p {
+            margin-top: 0.75rem;
+        }
+
+        .markdown-content ul {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            padding-left: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .markdown-content li {
+            margin-bottom: 0.25rem;
+        }
+
+        .report-history-item {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+
+        .report-history-item:hover {
+            background-color: #eff6ff;
+            cursor: pointer;
+        }
     </style>
 </head>
 
-<body class="bg-gray-50 min-h-screen p-6 flex items-start justify-center">
+<body class="bg-gray-50 min-h-screen p-4 flex justify-center">
 
     <!-- Custom Message Box for Alerts -->
     <div id="messageBox"
-        class="message-box fixed top-4 right-4 p-4 rounded-lg shadow-xl text-white opacity-0 pointer-events-none bg-emerald-600">
+        class="message-box fixed top-4 right-4 p-4 rounded-xl shadow-xl text-white opacity-0 pointer-events-none bg-blue-600">
         Message Text
     </div>
     <!-- End Message Box -->
 
-    <!-- Main Application Container -->
-    <div class="w-full max-w-4xl bg-white rounded-xl shadow p-6 md:p-10">
-        <header class="text-center mb-6">
-            <h1 class="text-3xl font-bold">ComplianceFlow AI <span
-                    class="text-sm font-light text-gray-400 block">MatrixMarket</span></h1>
-            <p class="text-gray-600 mt-2">Generate preliminary compliance documents and risk analysis for contractors.
-            </p>
-            <!-- Display User ID for debugging and multi-user context -->
-            <p id="userIdDisplay" class="text-xs text-gray-500 mt-1"></p>
-        </header>
+    <!-- Main Layout Grid -->
+    <div class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-        <!-- New dedicated error display area -->
-        <div id="errorDisplay"
-            class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <strong class="font-bold">Configuration Error:</strong>
-            <span id="errorMessage" class="block sm:inline ml-1"></span>
-        </div>
+        <!-- Left Sidebar: Report History (ENHANCED) -->
+        <aside class="lg:col-span-1 bg-white rounded-xl shadow-lg p-6 h-fit sticky top-4">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Saved Reports</h2>
+            <p id="userIdDisplay" class="text-xs text-gray-500 mb-4">User ID: Loading...</p>
+            <div id="historyList" class="space-y-3">
+                <p class="text-gray-500 italic text-sm" id="historyPlaceholder">No reports saved yet.</p>
+                <!-- History items will be inserted here -->
+            </div>
+        </aside>
 
-        <!-- Input Form -->
-        <form id="projectForm" class="space-y-4 bg-gray-100 p-4 rounded-lg">
-            <div>
-                <label for="projectName" class="block text-sm font-medium text-gray-700">Project Title</label>
-                <input id="projectName" type="text" value="Office Tower Renovation Phase I"
-                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                    required />
-            </div>
-            <div>
-                <label for="projectScope" class="block text-sm font-medium text-gray-700">Detailed Project Scope</label>
-                <textarea id="projectScope" rows="6"
-                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                    required>Interior demolition of two floors (5 and 6) in a commercial building in downtown Chicago. Includes hazardous material abatement (old lead piping), requiring OSHA and local environmental permits. Estimated duration: 90 days. Client is a major healthcare provider.</textarea>
-            </div>
-            <div class="flex gap-4 items-center">
-                <!-- Generate Button -->
-                <button id="generateButton" type="submit"
-                    class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl flex items-center shadow-md transition duration-150 ease-in-out">
-                    <span id="buttonText">Analyze & Generate Document</span>
-                    <div id="spinner" class="spinner ml-3 hidden"></div>
-                </button>
-                <!-- Save Button (uses Firestore) -->
-                <button id="saveReportButton" type="button"
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-md transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled>Save Report</button>
-            </div>
-        </form>
+        <!-- Right Content: Input Form and Output -->
+        <main class="lg:col-span-3">
+            <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                <header class="text-center mb-6">
+                    <h1 class="text-3xl font-extrabold text-gray-900">ComplianceFlow AI</h1>
+                    <p class="text-gray-600 mt-2">Generate professional compliance documents and risk analysis for
+                        contractors using **real-time Google data.**</p>
+                </header>
 
-        <!-- Output Section -->
-        <div id="outputSection" class="mt-8 hidden">
-            <h2 class="text-2xl font-semibold text-gray-800 border-b pb-2 mb-4">Generated Compliance Analysis</h2>
-            <div id="generatedDoc" class="mt-3 p-6 bg-gray-50 border border-gray-200 rounded-lg shadow-inner"></div>
-        </div>
+                <!-- Dedicated Error Display Area -->
+                <div id="errorDisplay"
+                    class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6"
+                    role="alert">
+                    <strong class="font-bold">Configuration Error:</strong>
+                    <span id="errorMessage" class="block sm:inline ml-1"></span>
+                </div>
+
+                <!-- Input Form -->
+                <form id="projectForm" class="space-y-5 bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-inner">
+                    <div>
+                        <label for="projectName" class="block text-sm font-semibold text-gray-700 mb-1">Project
+                            Title</label>
+                        <input id="projectName" type="text" value="Office Tower Renovation Phase I"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                            required />
+                    </div>
+                    <div>
+                        <label for="projectScope" class="block text-sm font-semibold text-gray-700 mb-1">Detailed
+                            Project Scope</label>
+                        <textarea id="projectScope" rows="6"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                            required>Interior demolition of two floors (5 and 6) in a commercial building in downtown Chicago. Includes hazardous material abatement (old lead piping), requiring OSHA and local environmental permits. Estimated duration: 90 days. Client is a major healthcare provider.</textarea>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-4 items-center pt-2">
+                        <!-- Generate Button -->
+                        <button id="generateButton" type="submit"
+                            class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-xl flex items-center justify-center shadow-lg transform hover:scale-[1.02] transition duration-200 ease-in-out">
+                            <span id="buttonText">Analyze & Generate Document</span>
+                            <div id="spinner" class="spinner ml-3 hidden"></div>
+                        </button>
+                        <!-- Save Button (uses Firestore) -->
+                        <button id="saveReportButton" type="button"
+                            class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-8 py-3 rounded-xl shadow-lg transform hover:scale-[1.02] transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>Save Report</button>
+                    </div>
+                </form>
+
+                <!-- Output Section -->
+                <div id="outputSection" class="mt-8 hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 border-b pb-3 mb-4">Generated Compliance Analysis</h2>
+                    
+                    <!-- Risk Score Visualization (NEW) -->
+                    <div id="riskVisualization" class="mb-4"></div>
+
+                    <div id="generatedDoc"
+                        class="mt-3 p-6 bg-white border border-gray-300 rounded-xl shadow-md min-h-[300px]">
+                        <!-- Rendered Markdown content goes here -->
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script type="module">
         // --- MANDATORY FIREBASE & ENVIRONMENT SETUP ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, serverTimestamp, setLogLevel, onSnapshot, query, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ====================================================================================================
         // === CRITICAL ACTION 1: INSERT YOUR FIREBASE CONFIGURATION HERE FOR PUBLIC WEBSITE DEPLOYMENT ===
-        // Get this object from your Firebase project settings (Web app setup).
-        // It must look like: { apiKey: "AIza...", authDomain: "...", projectId: "...", ... }
+        // 🚨 IMPORTANT: REPLACE the placeholder object with your actual Firebase config (apiKey, projectId, etc.)
         // ====================================================================================================
         const CUSTOM_FIREBASE_CONFIG = {
             // PASTE YOUR ENTIRE FIREBASE CONFIG OBJECT HERE
@@ -119,15 +178,26 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined'
             ? JSON.parse(__firebase_config)
-            : CUSTOM_FIREBASE_CONFIG; // Use custom config if not in canvas
+            : CUSTOM_FIREBASE_CONFIG; 
 
-        // Initialize Firebase services
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        setLogLevel('Debug'); // Enable Firestore logging
+        let app, db, auth;
+        let userId = null; 
+        let isFirebaseReady = false;
 
-        let userId = null; // User ID (UID or random for anon)
+        // Check for Firebase placeholder immediately on load
+        if (Object.keys(CUSTOM_FIREBASE_CONFIG).length === 0 && typeof __firebase_config === 'undefined') {
+            document.addEventListener('DOMContentLoaded', () => {
+                showMessage('Configuration Error: CUSTOM_FIREBASE_CONFIG is empty. Please set your Firebase credentials.', 'error');
+            });
+        } else if (Object.keys(firebaseConfig).length !== 0) {
+            // Initialize Firebase services only if config is present
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            setLogLevel('Debug'); 
+            initAuth();
+        }
+
 
         /**
          * Custom function to display messages instead of forbidden alert().
@@ -141,14 +211,12 @@
 
             box.textContent = message;
 
-            box.classList.remove('bg-emerald-600', 'bg-red-600');
+            box.classList.remove('bg-blue-600', 'bg-red-600', 'bg-emerald-600');
             if (type === 'success') {
-                box.classList.add('bg-emerald-600');
-                // Hide persistent error display on success
+                box.classList.add('bg-blue-600');
                 errorDisplay.classList.add('hidden');
             } else {
                 box.classList.add('bg-red-600');
-                // Show persistent error display on error
                 errorDisplay.classList.remove('hidden');
                 errorMessage.textContent = message;
             }
@@ -161,19 +229,12 @@
 
         // Authentication logic
         async function initAuth() {
-            // Check for Firebase placeholder immediately
-            if (Object.keys(CUSTOM_FIREBASE_CONFIG).length === 0) {
-                showMessage('Configuration Error: CUSTOM_FIREBASE_CONFIG is empty. Please set your Firebase credentials.', 'error');
-                // Prevent further Firebase setup if config is missing
-                return;
-            }
+            if (!db) return; 
 
             try {
-                // Check for the canvas-provided token first
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
-                    // Default to anonymous sign-in for public deployment
                     await signInAnonymously(auth);
                 }
             } catch (error) {
@@ -181,25 +242,25 @@
                 showMessage('Firebase Authentication Failed. Check your project configuration/rules.', 'error');
             }
 
-            // Listener to get the final user state (UID)
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     userId = user.uid;
                 } else {
-                    // Fallback using crypto.randomUUID for unauthenticated persistence
                     userId = crypto.randomUUID();
                 }
-                // Update UI with the user's ID
                 document.getElementById('userIdDisplay').textContent = `User ID: ${userId}`;
+                isFirebaseReady = true;
+                loadReportsHistory(); // Start loading history once authenticated
             });
         }
-        initAuth();
+        
         // --- END MANDATORY FIREBASE & ENVIRONMENT SETUP ---
 
         // --- GEMINI CONFIGURATION ---
 
         // ====================================================================================================
         // === CRITICAL ACTION 2: INSERT YOUR GEMINI API KEY HERE FOR PUBLIC WEBSITE DEPLOYMENT ===
+        // 🚨 IMPORTANT: REPLACE the placeholder string with your actual Gemini API Key.
         // ====================================================================================================
         const CUSTOM_GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
 
@@ -216,6 +277,9 @@
         const outputSection = document.getElementById('outputSection');
         const generatedDoc = document.getElementById('generatedDoc');
         const saveReportButton = document.getElementById('saveReportButton');
+        const historyList = document.getElementById('historyList');
+        const historyPlaceholder = document.getElementById('historyPlaceholder');
+        const riskVisualization = document.getElementById('riskVisualization');
 
         let currentReport = null;
 
@@ -227,12 +291,92 @@
             else buttonText.textContent = 'Analyze & Generate Document';
         }
 
+        // --- NEW: Risk Score Visualization ---
+        function renderRiskScore(score) {
+            if (score === null || score === 0) return '';
+            const scoreInt = parseInt(score, 10);
+            let colorClass = 'bg-gray-400';
+            let title = 'N/A';
+            
+            if (scoreInt >= 1 && scoreInt <= 3) {
+                colorClass = 'bg-emerald-500';
+                title = 'LOW RISK';
+            }
+            else if (scoreInt >= 4 && scoreInt <= 6) {
+                colorClass = 'bg-orange-500';
+                title = 'MODERATE RISK';
+            }
+            else if (scoreInt >= 7 && scoreInt <= 10) {
+                colorClass = 'bg-red-600';
+                title = 'HIGH RISK';
+            }
+
+            return `
+                <div class="p-6 rounded-xl ${colorClass} text-white text-center shadow-lg transform transition duration-200 w-full md:w-1/2 lg:w-1/3">
+                    <p class="text-sm font-light opacity-90">${title}</p>
+                    <p class="text-6xl font-extrabold mt-2">${score}</p>
+                    <p class="text-sm font-light">/ 10</p>
+                </div>
+            `;
+        }
+
+
+        // --- Basic Client-Side Markdown Renderer ---
+        function renderMarkdown(markdown) {
+            if (!markdown) return '';
+
+            let html = markdown;
+
+            // Simple Bold
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Convert headings (using h3/h4/h5 for document structure)
+            html = html.replace(/^###\s*(.*$)/gim, '<h3>$1</h3>');
+
+            // Convert lists (* or -)
+            html = html.replace(/^\s*[\*\-]\s*(.*)$/gim, '<li>$1</li>');
+
+            // Handle paragraphs and lists
+            const lines = html.split('\n');
+            let inList = false;
+            let finalHtml = '';
+
+            lines.forEach(line => {
+                if (line.startsWith('<li>')) {
+                    if (!inList) {
+                        finalHtml += '<ul class="list-disc ml-6 space-y-1">';
+                        inList = true;
+                    }
+                    finalHtml += line;
+                } else {
+                    if (inList) {
+                        finalHtml += '</ul>';
+                        inList = false;
+                    }
+                    // Handle paragraphs (ignore empty lines unless they follow a list close)
+                    if (line.trim() !== '' && !line.startsWith('<h')) {
+                        finalHtml += `<p class="mt-2">${line}</p>`;
+                    }
+                    // Pass headers through
+                    if (line.startsWith('<h')) {
+                         finalHtml += line;
+                    }
+                }
+            });
+            if (inList) finalHtml += '</ul>'; 
+
+            return `<div class="markdown-content">${finalHtml}</div>`;
+        }
+        // --- END Markdown Renderer ---
+
+
         /**
          * Calls the Gemini API with exponential backoff and correct payload.
+         * NOTE: Includes the Google Search Tool for real-time grounding.
          */
         async function callGemini(prompt, maxRetries = 3) {
             // Explicitly check if the API Key is still the placeholder text
-            if (CUSTOM_GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE" || !apiKey) {
+            if (CUSTOM_GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE" && apiKey === "") {
                 throw new Error("API Key Missing: Please replace 'YOUR_GEMINI_API_KEY_HERE' in the code.");
             }
 
@@ -241,8 +385,11 @@
                 try {
                     const payload = {
                         contents: [{ parts: [{ text: prompt }] }],
+                        // --- CRITICAL: ADDED GOOGLE SEARCH GROUNDING TOOL ---
+                        tools: [{ "google_search": {} }],
+                        // --- END CRITICAL ---
                         systemInstruction: {
-                            parts: [{ text: "You are an expert compliance and risk analyst. Your goal is to generate preliminary, professional, and well-structured compliance reports based on project scope, focusing on regulatory risks, required permits, and safety mitigations. Respond only with the requested report content in Markdown." }]
+                            parts: [{ text: "You are an expert compliance and risk analyst. Your goal is to generate preliminary, professional, and well-structured compliance reports based on project scope, focusing on regulatory risks, required permits, and safety mitigations. Use Google Search grounding to find the latest and most relevant information. Respond only with the requested report content in Markdown." }]
                         },
                         generationConfig: {
                             maxOutputTokens: 2048
@@ -264,7 +411,6 @@
                         } else if (data?.candidates?.[0]?.finishReason === 'SAFETY') {
                             throw new Error('Content blocked by safety filters.');
                         }
-                        // This handles the common 400/403 errors when the API key is wrong or missing
                         if (res.status === 400 || res.status === 403) {
                             throw new Error("Authentication failed. Check your Gemini API key.");
                         }
@@ -297,17 +443,116 @@
 4. List Hazards and Mitigation Steps (list at least 5 key items).
 5. List Key Timelines and Dependencies.
 
-Present the entire report using clear Markdown headings and bullet points.
+Present the entire report using clear Markdown headings (use only level 3, ###) and bullet points (* or -).
 
 Project Title: ${title}
 Project Scope: ${scope}`;
         }
+
+        /**
+         * Loads report data into the main display.
+         */
+        function loadHistoricalReport(report) {
+            currentReport = report; 
+            document.getElementById('projectName').value = report.projectName || '';
+            document.getElementById('projectScope').value = report.projectScope || '';
+
+            generatedDoc.innerHTML = renderMarkdown(report.aiText);
+            riskVisualization.innerHTML = renderRiskScore(report.riskScore);
+            outputSection.classList.remove('hidden');
+            saveReportButton.disabled = true; 
+            showMessage(`Loaded report: ${report.projectName}`, 'success');
+        }
+
+        /**
+         * Deletes a report from Firestore.
+         */
+        async function deleteReport(reportId) {
+            if (!db) return showMessage('Firebase not configured.', 'error');
+            
+            try {
+                const docRef = doc(db, 'reports', reportId);
+                await deleteDoc(docRef);
+                showMessage('Report successfully deleted.', 'success');
+            } catch (err) {
+                console.error('Delete failed:', err);
+                showMessage('Failed to delete report: ' + err.message, 'error');
+            }
+        }
+
+
+        // --- Real-time History Loader using onSnapshot ---
+        function loadReportsHistory() {
+            if (!isFirebaseReady || !db) {
+                console.warn('Firebase not ready or configured.');
+                return;
+            }
+
+            const reportsPath = `reports`;
+            const q = query(collection(db, reportsPath));
+
+            onSnapshot(q, (snapshot) => {
+                const reports = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    // Only show reports saved by the current user session (UID or random ID)
+                    if (data.userId === userId) {
+                        reports.push({
+                            id: doc.id,
+                            ...data,
+                            timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
+                        });
+                    }
+                });
+
+                // Sort by newest first
+                reports.sort((a, b) => b.timestamp - a.timestamp);
+
+                historyList.innerHTML = ''; // Clear current list
+                if (reports.length === 0) {
+                    historyPlaceholder.classList.remove('hidden');
+                } else {
+                    historyPlaceholder.classList.add('hidden');
+                    reports.forEach(report => {
+                        const dateString = report.timestamp.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+                        const item = document.createElement('div');
+                        item.className = 'report-history-item p-3 rounded-xl transition duration-150 shadow-md flex justify-between items-center';
+                        item.innerHTML = `
+                            <div class="flex-grow min-w-0 pr-2">
+                                <p class="font-semibold text-gray-800 truncate">${report.projectName}</p>
+                                <p class="text-xs text-gray-500">${dateString} | Risk: <span class="font-bold">${report.riskScore || 'N/A'}</span></p>
+                            </div>
+                            <!-- Delete Button (NEW) -->
+                            <button data-id="${report.id}" class="delete-btn flex-shrink-0 text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-100 transition" title="Delete Report">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        `;
+                        
+                        // Set up event listeners
+                        item.querySelector('div').onclick = () => loadHistoricalReport(report); 
+                        item.querySelector('.delete-btn').onclick = (e) => {
+                            e.stopPropagation(); 
+                            deleteReport(report.id);
+                        };
+                        historyList.appendChild(item);
+                    });
+                }
+            }, (error) => {
+                console.error("Error listening to history:", error);
+                showMessage('Failed to load saved reports.', 'error');
+            });
+        }
+        // --- END History Loader ---
+
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             setLoading(true);
             outputSection.classList.add('hidden');
             generatedDoc.innerHTML = '';
+            riskVisualization.innerHTML = '';
             saveReportButton.disabled = true;
 
             const title = document.getElementById('projectName').value.trim();
@@ -317,21 +562,22 @@ Project Scope: ${scope}`;
                 const prompt = buildPrompt(title, scope);
                 const text = await callGemini(prompt);
 
+                // Simple heuristic to extract score
+                const riskMatch = text.match(/Regulatory Risk Score[:\s]*([0-9]+)/i);
+                const riskScore = riskMatch ? parseInt(riskMatch[1], 10) : null;
+
                 // Store the report data
                 currentReport = {
                     projectName: title,
                     projectScope: scope,
                     aiText: text,
-                    // Simple heuristic to extract score
-                    riskScore: (() => {
-                        const m = text.match(/Regulatory Risk Score[:\s]*([0-9]+)/i);
-                        return m ? parseInt(m[1], 10) : null;
-                    })(),
+                    riskScore: riskScore,
                     timestamp: new Date()
                 };
 
-                // Display the raw Markdown text nicely using a preformatted block
-                generatedDoc.innerHTML = `<pre class="whitespace-pre-wrap text-sm text-gray-800">${escapeHtml(text)}</pre>`;
+                // Display the RENDERED Markdown text and Risk Score
+                generatedDoc.innerHTML = renderMarkdown(text);
+                riskVisualization.innerHTML = renderRiskScore(riskScore);
                 outputSection.classList.remove('hidden');
                 saveReportButton.disabled = false;
                 showMessage('Report generated successfully!', 'success');
@@ -343,22 +589,16 @@ Project Scope: ${scope}`;
             }
         });
 
-        // Utility to escape HTML entities for display in <pre> tag
-        function escapeHtml(s) {
-            return String(s).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-        }
-
         saveReportButton.addEventListener('click', async () => {
             if (!userId || !currentReport) return showMessage('User not authenticated or no report to save.', 'error');
             if (Object.keys(firebaseConfig).length === 0) return showMessage('Firebase is not configured. Cannot save reports.', 'error');
 
             try {
-                // Using a generic "reports" collection path for public deployment
                 const reportsPath = `reports`;
                 const reportsRef = collection(db, reportsPath);
 
                 await addDoc(reportsRef, {
-                    userId: userId, // Include the ID of the user who saved it
+                    userId: userId, 
                     projectName: currentReport.projectName,
                     projectScope: currentReport.projectScope,
                     aiText: currentReport.aiText,
@@ -367,7 +607,7 @@ Project Scope: ${scope}`;
                 });
 
                 showMessage('Report saved successfully to Firestore!', 'success');
-                saveReportButton.disabled = true; // Prevent double saving
+                saveReportButton.disabled = true; 
             } catch (err) {
                 console.error('Save failed', err);
                 showMessage('Failed to save report: ' + err.message, 'error');
