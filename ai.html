@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI One-Page — Media Pro</title>
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+  <!-- Added Marked.js for Markdown parsing and Highlight.js for code syntax highlighting -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <style>
+    /* Minimal, modern styling */
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#7c5cff;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial}
+    body{background:linear-gradient(180deg,#071025 0%,#081126 60%);color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:28px}
+    .wrap{width:980px;max-width:96%;display:grid;grid-template-columns:360px 1fr;gap:20px}
+    .card{background:linear-gradient(180deg,var(--card),#081226);border-radius:14px;padding:18px;box-shadow:0 6px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+    .left{display:flex;flex-direction:column;gap:12px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#00d4ff);display:flex;align-items:center;justify-content:center;font-weight:700;color:#061021}
+    h1{font-size:18px;margin:0}
+    p.small{margin:0;color:var(--muted);font-size:13px}
+    .controls{display:flex;flex-direction:column;gap:8px}
+    label{font-size:12px;color:var(--muted)}
+    select,input[type=text]{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit}
+    button{padding:10px 12px;border-radius:10px;border:0;background:linear-gradient(90deg,var(--accent),#00d4ff);color:#061021;font-weight:600;cursor:pointer;transition:background-color 0.2s}
+    button:hover{filter:brightness(1.1)}
+    .history{overflow:auto;max-height:420px;padding:8px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent)}
+    .msg{padding:10px;border-radius:10px;margin-bottom:8px;font-size:14px;max-width:100%; overflow-wrap: break-word;}
+    .user{background:linear-gradient(90deg,#0b2540,#0b2a3a);align-self:flex-end}
+    .bot{background:linear-gradient(90deg,#09202f,#072338); align-self: flex-start;}
+
+    /* Main chat panel */
+    .chat{display:flex;flex-direction:column;height:640px}
+    .messages{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+    .composer{display:flex;gap:10px;padding:14px;border-top:1px solid rgba(255,255,255,0.02)}
+    textarea{flex:1;min-height:54px;max-height:140px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;resize:vertical}
+    .meta{display:flex;gap:8px;align-items:center}
+    .chip{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:999px;font-size:13px}
+    .footnote{font-size:12px;color:var(--muted);}
+
+    /* Toast Notification */
+    .toast { visibility: hidden; opacity: 0; transition: opacity 0.3s, transform 0.3s; transform: translateY(20px); position:fixed; bottom: 20px; right: 20px; background-color: #7c5cff; color: #061021; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000; }
+    .toast.show { visibility: visible; opacity: 1; transform: translateY(0); }
+    
+    /* Markdown and Code Block Styling */
+    .bot pre { position: relative; background-color: #0c1021; padding: 12px; border-radius: 8px; margin-top: 8px; }
+    .copy-btn { position: absolute; top: 8px; right: 8px; background: #2a3a49; color: #a9b7c6; border: 1px solid #3c4d5e; padding: 4px 8px; font-size: 12px; border-radius: 6px; cursor: pointer; opacity: 0.2; transition: opacity 0.2s; }
+    .bot pre:hover .copy-btn { opacity: 1; }
+    .copy-btn:hover { background: #3c4d5e; }
+    .bot ul { margin: 8px 0; padding-left: 20px; }
+    .bot p { margin: 8px 0; }
+
+    /* Typing Indicator */
+    .typing-indicator span { height: 8px; width: 8px; background-color: var(--muted); border-radius: 50%; display: inline-block; animation: bounce 1.4s infinite ease-in-out both; }
+    .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+
+    /* Video Script Styling */
+    .video-script-container { display: flex; flex-direction: column; gap: 12px; }
+    .scene-card { background-color: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 12px; }
+    .scene-header { font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+    .scene-content { font-size: 13px; color: var(--muted); }
+    .scene-content strong { color: #c5d3e8; }
+    .audio-player-controls { margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05); display: flex; align-items: center; gap: 10px;}
+    .audio-player-controls button { background: linear-gradient(90deg, #10b981, #06b6d4); color: white; padding: 8px 12px; font-weight: 500; }
+    .audio-player-controls button:disabled { background: #374151; cursor: not-allowed; }
+
+
+    /* responsive */
+    @media (max-width:880px){.wrap{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card left">
+      <div class="brand">
+        <div class="logo">AI</div>
+        <div>
+          <h1>AI One-Page — Media Pro</h1>
+          <p class="small">Single-file demo. Calls Gemini API directly, with a local fallback.</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div>
+          <label for="mode">Mode</label>
+          <select id="mode" title="Select run mode">
+            <option value="auto">Auto (try Gemini first, fallback to local)</option>
+            <option value="server">Gemini API</option>
+            <option value="local">Local (client-only)</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="persona">Assistant persona</label>
+          <select id="persona">
+            <option value="friendly">Friendly</option>
+            <option value="concise">Concise</option>
+            <option value="coder">Coder</option>
+            <option value="scripter">Video Scripter</option>
+            <option value="guru">Guru</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="historyToggle">Save history</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button id="clearHistory">Clear</button>
+            <div class="chip" id="storageStatus">localStorage</div>
+          </div>
+        </div>
+
+        <div>
+          <label>Conversation snippets</label>
+          <div class="history" id="snippets"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card chat">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="meta"><div class="chip">AI One-Page</div><div style="width:8px"></div><div class="footnote">Client calls Gemini API directly</div></div>
+        <div class="meta"><div id="status" class="footnote">Ready</div></div>
+      </div>
+
+      <div class="messages" id="messages" aria-live="polite"></div>
+
+      <div class="composer">
+        <textarea id="input" placeholder="Ask me something... (try: What's a quick plan to learn web dev?)"></textarea>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button id="send">Send</button>
+          <button id="regenerate">Regenerate</button>
+          <button id="generateAudioBtn" style="display:none; background: linear-gradient(90deg, #10b981, #06b6d4);">Generate Audio</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification element -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    /* Client JS: message store + Gemini API fallback + simple local AI + TTS */
+    const messagesEl = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+    const regenBtn = document.getElementById('regenerate');
+    const generateAudioBtn = document.getElementById('generateAudioBtn');
+    const modeSel = document.getElementById('mode');
+    const personaSel = document.getElementById('persona');
+    const snippetsEl = document.getElementById('snippets');
+    const clearHistoryBtn = document.getElementById('clearHistory');
+    const statusEl = document.getElementById('status');
+    const toastEl = document.getElementById('toast');
+
+    const STORAGE_KEY = 'ai_onepage_history_v5'; // Updated version key
+    
+    // IMPORTANT: For external hosting, you MUST get your own key from Google AI Studio
+    // and replace the placeholder below. Hardcoding keys is generally a security risk.
+    const API_KEY = "AIzaSyDFrctk2MZajP7OmECXe5npHAV0dODH9jk"; // <-- PASTE YOUR KEY HERE FOR EXTERNAL HOSTING (e.g., "AIzaSy...XYZ")
+    
+    const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+    const TTS_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${API_KEY}`;
+    const TTS_SAMPLE_RATE = 24000;
+    
+    let lastGeneratedScript = null; // Store the last script for audio generation
+
+    function now() { return new Date().toLocaleString() }
+
+    function saveHistory(hist) { localStorage.setItem(STORAGE_KEY, JSON.stringify(hist)); }
+    function loadHistory() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch (e) { return [] } }
+
+    function showToast(message, duration = 3000) {
+        toastEl.textContent = message;
+        toastEl.classList.add('show');
+        setTimeout(() => {
+            toastEl.classList.remove('show');
+        }, duration);
+    }
+    
+    // --- TTS Utility Functions for PCM to WAV Conversion ---
+    
+    function base64ToArrayBuffer(base64) {
+        const binaryString = atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+    
+    function pcmToWav(pcm16, sampleRate = TTS_SAMPLE_RATE) {
+        const numChannels = 1;
+        const bitsPerSample = 16;
+        const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+        const blockAlign = numChannels * (bitsPerSample / 8);
+        const dataSize = pcm16.byteLength;
+        const fileSize = 36 + dataSize;
+
+        const buffer = new ArrayBuffer(fileSize + 8);
+        const view = new DataView(buffer);
+
+        let offset = 0;
+        
+        // Write RIFF header
+        view.setUint32(offset, 0x52494646, false); // "RIFF"
+        offset += 4;
+        view.setUint32(offset, fileSize, true); // File size
+        offset += 4;
+        view.setUint32(offset, 0x57415645, false); // "WAVE"
+        offset += 4;
+        
+        // Write FMT chunk
+        view.setUint32(offset, 0x666d7420, false); // "fmt "
+        offset += 4;
+        view.setUint32(offset, 16, true); // Subchunk size (16 for PCM)
+        offset += 4;
+        view.setUint16(offset, 1, true); // Audio format (1 for PCM)
+        offset += 2;
+        view.setUint16(offset, numChannels, true); // Number of channels
+        offset += 2;
+        view.setUint32(offset, sampleRate, true); // Sample rate
+        offset += 4;
+        view.setUint32(offset, byteRate, true); // Byte rate
+        offset += 4;
+        view.setUint16(offset, blockAlign, true); // Block align
+        offset += 2;
+        view.setUint16(offset, bitsPerSample, true); // Bits per sample
+        offset += 2;
+        
+        // Write DATA chunk
+        view.setUint32(offset, 0x64617461, false); // "data"
+        offset += 4;
+        view.setUint32(offset, dataSize, true); // Data size
+        offset += 4;
+        
+        // Write PCM data
+        const pcmBytes = new Uint8Array(pcm16.buffer);
+        for (let i = 0; i < dataSize; i++, offset++) {
+            view.setUint8(offset, pcmBytes[i]);
+        }
+
+        return new Blob([view], { type: 'audio/wav' });
+    }
+
+    function playWavBlob(wavBlob) {
+        const audioUrl = URL.createObjectURL(wavBlob);
+        const audio = new Audio(audioUrl);
+        audio.play();
+        return audio;
+    }
+    
+    // --- End TTS Utility Functions ---
+
+    function renderMessages(hist) {
+        messagesEl.innerHTML = '';
+        lastGeneratedScript = null; // Reset script when rendering history
+        
+        hist.forEach(m => {
+            const div = document.createElement('div');
+            div.className = 'msg ' + (m.role === 'user' ? 'user' : 'bot');
+            
+            let content;
+            if (m.isTyping) {
+                content = `<div class="typing-indicator"><span></span><span></span><span></span></div>`;
+            } else if (m.role === 'user') {
+                content = `<div>${escapeHtml(m.text)}</div>`;
+            } else if (m.contentType === 'script') {
+                try {
+                    const scriptData = JSON.parse(m.text);
+                    lastGeneratedScript = scriptData; // Store the script
+                    
+                    content = '<div class="video-script-container">';
+                    scriptData.forEach(scene => {
+                        content += `
+                            <div class="scene-card">
+                                <div class="scene-header">SCENE ${scene.scene}</div>
+                                <div class="scene-content">
+                                    <p><strong>Visual:</strong> ${escapeHtml(scene.visual)}</p>
+                                    <p><strong>Audio:</strong> ${escapeHtml(scene.audio)}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    // Add Audio Generation Controls
+                    content += `
+                        <div class="audio-player-controls">
+                            <button onclick="generateAudioAndPlay()">Generate Voiceover</button>
+                            <span id="audioStatusText" class="footnote">Ready for voiceover generation.</span>
+                        </div>
+                    `;
+                    content += '</div>';
+
+                } catch (e) {
+                    // Fallback if JSON parsing fails
+                    content = marked.parse(m.text);
+                }
+            } else {
+                content = marked.parse(m.text);
+            }
+
+            div.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:6px">${m.role === 'user' ? 'You' : 'Assistant'} • ${m.time}</div>${content}`;
+            messagesEl.appendChild(div);
+
+            // After rendering, find and enhance code blocks
+            if (m.role !== 'user' && !m.isTyping && m.contentType !== 'script') {
+                div.querySelectorAll('pre').forEach(pre => {
+                    const code = pre.querySelector('code');
+                    if (code) {
+                        const copyBtn = document.createElement('button');
+                        copyBtn.className = 'copy-btn';
+                        copyBtn.textContent = 'Copy';
+                        copyBtn.onclick = () => {
+                            navigator.clipboard.writeText(code.textContent);
+                            showToast('Code copied!');
+                        };
+                        pre.appendChild(copyBtn);
+                        hljs.highlightElement(code);
+                    }
+                });
+            }
+        });
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        updateAudioButtonVisibility();
+    }
+
+    function renderSnippets(hist) {
+        snippetsEl.innerHTML = '';
+        hist.slice().reverse().slice(0, 8).forEach((m) => {
+            if (m.role === 'user') {
+                const btn = document.createElement('button');
+                btn.style.width = '100%';
+                btn.style.marginBottom = '6px';
+                btn.textContent = m.text.slice(0, 80) + (m.text.length > 80 ? '…' : '');
+                btn.onclick = () => { input.value = m.text; input.focus(); };
+                snippetsEl.appendChild(btn);
+            }
+        });
+    }
+
+    function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c])); }
+
+    function localAI(message, persona) {
+        const m = message.toLowerCase();
+        if (persona === 'scripter') {
+            return "Video script and audio generation require the Gemini API. Please switch to 'Gemini API' or 'Auto' mode.";
+        }
+        if (m.includes('plan') && m.includes('learn')) {
+            return `Here's a short 7-day plan to learn web development:\n1) HTML basics and structure\n2) CSS fundamentals and responsive layout\n3) JavaScript basics (DOM, events)\n4) Build a small project (todo)\n5) Learn fetch and simple backend\n6) Deploy (Netlify/Vercel)\n7) Keep iterating and read docs`;
+        }
+        // ... rest of localAI is unchanged
+        return `I heard: "${message}" — try switching to Gemini mode for stronger answers.`;
+    }
+
+    async function callGeminiAPI(message, persona) {
+        try {
+            statusEl.textContent = 'Calling Gemini API...';
+            
+            let payload;
+            if (persona === 'scripter') {
+                const systemInstruction = { parts: [{ text: "You are a professional video script writer. Based on the user's topic, generate a short video script as a JSON array. Each object in the array should be a scene with 'scene' (number), 'visual' (string), and 'audio' (string) properties. Keep the audio text concise for voiceover." }] };
+                const responseSchema = {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            scene: { type: "NUMBER" },
+                            visual: { type: "STRING" },
+                            audio: { type: "STRING" }
+                        },
+                        required: ["scene", "visual", "audio"]
+                    }
+                };
+                payload = {
+                    contents: [{ parts: [{ text: message }] }],
+                    systemInstruction,
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: responseSchema
+                    }
+                };
+            } else {
+                payload = {
+                    contents: [{ parts: [{ text: message }] }],
+                    systemInstruction: {
+                        parts: [{ text: `You are a helpful ${persona} assistant. Use Markdown for formatting, especially for code blocks with language identifiers.` }]
+                    }
+                };
+            }
+
+            const resp = await fetch(GEMINI_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!resp.ok) {
+                 const errorData = await resp.json();
+                 throw new Error(errorData.error?.message || 'Gemini API returned an error');
+            }
+
+            const data = await resp.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!text) throw new Error("No response text from Gemini.");
+            return { text, contentType: persona === 'scripter' ? 'script' : 'markdown' };
+
+        } catch (err) {
+            throw err;
+        } finally {
+            statusEl.textContent = 'Ready';
+        }
+    }
+
+    async function generateAudioForScript() {
+        if (!lastGeneratedScript) {
+            showToast("No script found. Please generate a script first.");
+            return;
+        }
+
+        const audioStatusText = document.getElementById('audioStatusText');
+        
+        try {
+            audioStatusText.textContent = "Generating voiceover...";
+            
+            // 1. Concatenate all audio lines from the script
+            const audioLines = lastGeneratedScript.map(scene => scene.audio);
+            const ttsPrompt = audioLines.join(' '); 
+
+            // 2. Build the payload for the TTS API
+            const ttsPayload = {
+                contents: [{ parts: [{ text: ttsPrompt }] }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: "Kore" } // Using Kore voice
+                        }
+                    }
+                },
+                model: "gemini-2.5-flash-preview-tts"
+            };
+
+            // 3. Call the TTS API
+            const resp = await fetch(TTS_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ttsPayload)
+            });
+
+            if (!resp.ok) {
+                const errorData = await resp.json();
+                throw new Error(errorData.error?.message || 'TTS API returned an error');
+            }
+
+            const data = await resp.json();
+            const part = data.candidates?.[0]?.content?.parts?.[0];
+            const audioData = part?.inlineData?.data;
+            const mimeType = part?.inlineData?.mimeType;
+            
+            if (!audioData || !mimeType || !mimeType.startsWith("audio/L16")) {
+                throw new Error("Invalid audio response from TTS API.");
+            }
+
+            // 4. Convert PCM (L16) to WAV and play
+            const pcmData = base64ToArrayBuffer(audioData);
+            const pcm16 = new Int16Array(pcmData);
+            const wavBlob = pcmToWav(pcm16, TTS_SAMPLE_RATE);
+            
+            const audio = playWavBlob(wavBlob);
+            
+            audioStatusText.textContent = "Playing voiceover...";
+            audio.onended = () => {
+                 audioStatusText.textContent = "Voiceover finished.";
+            };
+            audio.onerror = (e) => {
+                 audioStatusText.textContent = "Error playing audio.";
+                 console.error("Audio playback error:", e);
+            };
+
+            showToast("Voiceover generated and playing!");
+
+        } catch (err) {
+            console.error("Audio Generation Error:", err);
+            audioStatusText.textContent = `Error: ${err.message}.`;
+            showToast("Failed to generate voiceover. Check console for details.");
+        }
+    }
+    
+    // Make function globally accessible for onclick in HTML
+    window.generateAudioAndPlay = generateAudioForScript;
+
+
+    async function sendMessage(text, { fromUser = true, save = true, tryServerFirst = true } = {}) {
+        let hist = loadHistory();
+        if (fromUser) { hist.push({ role: 'user', text, time: now() }); }
+        
+        hist.push({ role: 'assistant', text: '...', time: now(), isTyping: true });
+        renderMessages(hist);
+        renderSnippets(hist);
+
+        const persona = personaSel.value;
+        let reply = { text: '', contentType: 'markdown' };
+
+        const mode = modeSel.value;
+        const shouldTryServer = (mode === 'server') || (mode === 'auto' && tryServerFirst);
+
+        if (shouldTryServer) {
+            try {
+                reply = await callGeminiAPI(text, persona);
+            } catch (err) {
+                console.warn('Gemini API failed, falling back to local:', err);
+                showToast(`API call failed: ${err.message}. Using local fallback.`, 5000);
+                reply.text = localAI(text, persona);
+            }
+        } else {
+            reply.text = localAI(text, persona);
+        }
+
+        hist.pop(); // remove typing indicator
+        hist.push({ role: 'assistant', text: reply.text, time: now(), contentType: reply.contentType });
+        if (save) { saveHistory(hist); }
+        renderMessages(hist);
+        renderSnippets(hist);
+    }
+
+    function updatePlaceholder() {
+        if (personaSel.value === 'scripter') {
+            input.placeholder = 'Describe the video you want to create... (e.g., a 30-second ad for a new coffee brand)';
+        } else {
+            input.placeholder = "Ask me something... (try: What's a quick plan to learn web dev?)";
+        }
+        updateAudioButtonVisibility();
+    }
+    
+    function updateAudioButtonVisibility() {
+        if (personaSel.value === 'scripter' && modeSel.value !== 'local') {
+            generateAudioBtn.style.display = 'block';
+        } else {
+            generateAudioBtn.style.display = 'none';
+        }
+    }
+    
+    sendBtn.addEventListener('click', () => {
+        const t = input.value.trim(); if (!t) return; sendMessage(t); input.value = ''; input.focus();
+    });
+
+    regenBtn.addEventListener('click', () => {
+        const hist = loadHistory();
+        const lastUser = [...hist].reverse().find(m => m.role === 'user');
+        if (!lastUser) {
+            showToast('No user message to regenerate.');
+            return;
+        }
+        if (hist.length > 0 && hist[hist.length - 1].role === 'assistant') {
+            hist.pop();
+        }
+        sendMessage(lastUser.text, { fromUser: false, save: true, tryServerFirst: true });
+    });
+
+    generateAudioBtn.addEventListener('click', generateAudioForScript);
+
+    clearHistoryBtn.addEventListener('click', () => {
+        localStorage.removeItem(STORAGE_KEY);
+        renderMessages([]);
+        renderSnippets([]);
+        showToast('Conversation history cleared.');
+    });
+    
+    personaSel.addEventListener('change', updatePlaceholder);
+    modeSel.addEventListener('change', updateAudioButtonVisibility);
+
+    // init from storage
+    (function init() {
+        marked.setOptions({ breaks: true, gfm: true });
+        const hist = loadHistory();
+        renderMessages(hist);
+        renderSnippets(hist);
+        statusEl.textContent = 'Ready';
+        updatePlaceholder();
+    })();
+
+    // keyboard shortcut: Ctrl+Enter to send
+    input.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') { sendBtn.click(); } });
+
+  </script>
+
+</body>
+</html>
